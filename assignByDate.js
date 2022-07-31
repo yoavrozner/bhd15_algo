@@ -1,15 +1,4 @@
-let assignDates = [];
 
-for (let i = 17; i >= 1; i -= 2) {
-    const date = [new Date(i).getTime(), new Date(i + 1).getTime()];
-    assignDates.push(date);
-    assignDates.push(date);
-    assignDates.push(date);
-    assignDates.push(date);
-    assignDates.push(date);
-    assignDates.push(date);
-    assignDates.push(date);
-}
 
 // console.log(assignDates)
 
@@ -32,7 +21,7 @@ class Calendar {
 
     isOverlapping(range1, range2) {
         return !(((range1[0] <= range2[1]) && (range1[1] <= range2[0])) ||
-                 ((range2[0] <= range1[1]) && (range2[1] <= range1[0])));
+            ((range2[0] <= range1[1]) && (range2[1] <= range1[0])));
     }
 
     // canAddEvent(startDate, endDate) {
@@ -55,7 +44,7 @@ class Calendar {
     }
 }
 
-const assign = (calendars, assignDates) => {
+const assign = (calendars, assignDates, dynamicRanges) => {
     const backtrack = (calendars, assignDates) => {
         if (assignDates.length === 0) {
             return calendars;
@@ -84,7 +73,59 @@ const assign = (calendars, assignDates) => {
             if (!isAssigned) return null;
         }
     }
-    const calendar = backtrack(calendars, assignDates)
+    const dynamicBacktrack = (calendars, dynamicRanges) => {
+        if (dynamicRanges.length === 0) {
+            return calendars;
+        }
+
+        for (let dynamicIndex = 0; dynamicIndex < dynamicRanges.length; dynamicIndex++) {
+            let isAssigned = false;
+
+            for (let calendarIndex = 0; calendarIndex < calendars.length; calendarIndex++) {
+                const calendar = calendars[calendarIndex];
+
+                const currRange = dynamicRanges[dynamicIndex];
+                let startRangeDate = calendar.startDate + 1;
+                let rangeToAssign = [startRangeDate, startRangeDate + currRange];
+                if (calendar.canAddEvent(rangeToAssign)) {
+                    isAssigned = true;
+                    calendar.addEvent(rangeToAssign);
+                    const tempArr = dynamicRanges.concat();
+                    tempArr.splice(dynamicIndex, 1);
+                    const result = dynamicBacktrack(calendars, tempArr);
+                    if (result) {
+                        return result;
+                    }
+                    calendar.removeEvent();
+                    isAssigned = false;
+                }
+
+                for (let eventIndex = 0; eventIndex < calendar.events.length; eventIndex++) {
+                    const event = calendar.events[eventIndex];
+                    const eventEnd = event[1];
+                    startRangeDate = eventEnd + 1;
+                    rangeToAssign = [startRangeDate, startRangeDate + currRange];
+
+                    if (calendar.canAddEvent(rangeToAssign)) {
+                        isAssigned = true;
+                        calendar.addEvent(rangeToAssign);
+                        const tempArr = dynamicRanges.concat();
+                        tempArr.splice(dynamicIndex, 1);
+                        const result = dynamicBacktrack(calendars, tempArr);
+                        if (result) {
+                            return result;
+                        }
+                        calendar.removeEvent();
+                        isAssigned = false;
+                    }
+                }
+            }
+            if (!isAssigned) return null;
+        }
+    }
+
+    let calendar = backtrack(calendars, assignDates);
+    calendar = dynamicBacktrack(calendars, dynamicRanges);
     return calendar;
 }
 
@@ -111,9 +152,45 @@ const initOffices = () => {
     return initCalendar(7);
 }
 
+const initStaticCoursesDates = () => {
+    let assignDates = [];
+
+    for (let i = 1; i < 17; i += 2) {
+        const date = [new Date(i).getTime(), new Date(i + 1).getTime()];
+        assignDates.push(date);
+        assignDates.push(date);
+        assignDates.push(date);
+        assignDates.push(date);
+        assignDates.push(date);
+        assignDates.push(date);
+        assignDates.push(date);
+    }
+
+    return assignDates;
+}
+
+const initDynamicCoursesRanges = () => {
+    let assignRange = [];
+
+    for (let i = 0; i < 17; i += 2) {
+        const range = 10 + i;
+        assignRange.push(range);
+        assignRange.push(range);
+        assignRange.push(range);
+        assignRange.push(range);
+        assignRange.push(range);
+        // assignRange.push(range);
+    }
+
+    return assignRange;
+}
 
 (async () => {
+    const staticCourses = initStaticCoursesDates();
+    const dynamicCourses = initDynamicCoursesRanges();
     const allClasses = initClasses();
 
-    console.log(JSON.stringify(assign(allClasses, assignDates), null, 2));
+    // console.log(JSON.stringify(assign(allClasses, staticCourses), null, 2));
+    assign(allClasses, staticCourses, dynamicCourses);
+    console.log(JSON.stringify(allClasses));
 })();
