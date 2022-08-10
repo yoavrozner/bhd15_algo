@@ -21,7 +21,7 @@ class CalendarEvent {
     }
 
     public get range(): [number, number] {
-        return [this.startDate.getTime(), this.endDate.getTime()];
+        return [this.startTime, this.endTime];
     }
 
     public get startTime(): number {
