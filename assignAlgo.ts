@@ -31,6 +31,10 @@ class CalendarEvent {
     public get endTime(): number {
         return this.endDate.getTime();
     }
+
+    public get duration(): EventDuration {
+        return this.endTime - this.startTime;
+    }
 }
 
 
@@ -76,6 +80,40 @@ class Calendar {
 
 // A group (array) of assigned Calendars binded together
 type Schedule = Calendar[] | null;
+
+class ScoredSchedule {
+    schedule: NonNullable<Schedule>;
+    score: number;
+    constructor(schedule: Schedule) {
+        if (!schedule) throw new Error('Empty schedule');
+        this.schedule = schedule;
+        this.score = this.scoringAlgo(schedule);
+    }
+
+    scoringAlgo(schedule: NonNullable<Schedule>) {
+        const EVENTS_SCORING_WEIGHT = 10;
+        const FREE_TIME_SCORING_WEIGHT = 1;
+
+        const eventsInCalendars: number[] = [];
+        const freeTimeInCalendars: number[] = [];
+
+        schedule.forEach((calendar) => {
+            eventsInCalendars.push(calendar.events.length);
+            const freeTime = calendar.endTime - calendar.startTime -
+                calendar.events.reduce((duration, currentEvent) => duration + currentEvent.duration.valueOf(), 0)
+            freeTimeInCalendars.push(freeTime);
+        });
+
+        const diffArr = (arr: number[]) => Math.max(...arr) - Math.min(...arr);
+
+        const diffEvents = diffArr(eventsInCalendars);
+        const diffFreeTime = diffArr(freeTimeInCalendars);
+
+        const scoreEvents = diffEvents * EVENTS_SCORING_WEIGHT;
+        const scoreFreeTime = diffFreeTime.toString().length * FREE_TIME_SCORING_WEIGHT;
+        return scoreEvents + scoreFreeTime;
+    }
+}
 
 const assign = (
     calendars: Calendar[],
@@ -161,7 +199,7 @@ const assign = (
     return schedule;
 }
 
-const initCalendar = (numberOfCalendars) => {
+const initCalendar = (numberOfCalendars: number) => {
     const allItems: Calendar[] = [];
 
     for (let i = 0; i < numberOfCalendars; i++) {
