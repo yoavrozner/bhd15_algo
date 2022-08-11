@@ -1,3 +1,5 @@
+import * as fs from 'fs'; 
+
 class EventDuration extends Number { }
 
 class CalendarEvent {
@@ -14,10 +16,12 @@ class CalendarEvent {
         // this.id = 'id' + (new Date()).getTime();
         if (startDate) this.startDate = startDate;
         else if (startTime) this.startDate = new Date(startTime);
+        else throw new Error('Start date is required');
 
         if (endDate) this.endDate = endDate;
         else if (duration) this.endDate = new Date(duration.valueOf() - this.startDate.getTime());
         else if (endTime) this.endDate = new Date(endTime);
+        else throw new Error('End date is required');
     }
 
     public get range(): [number, number] {
@@ -91,7 +95,7 @@ class ScoredSchedule {
     }
 
     scoringAlgo(schedule: NonNullable<Schedule>) {
-        const EVENTS_SCORING_WEIGHT = 10;
+        const EVENTS_SCORING_WEIGHT = 100;
         const FREE_TIME_SCORING_WEIGHT = 1;
 
         const eventsInCalendars: number[] = [];
@@ -119,6 +123,7 @@ const assign = (
     calendars: Calendar[],
     staticEvents: CalendarEvent[],
     dynamicEvents: EventDuration[]): Schedule => {
+    let bestSchedule: ScoredSchedule | null = null;
     const backtrackDivergence = (
         calendar: Calendar,
         event: CalendarEvent,
@@ -167,6 +172,12 @@ const assign = (
         calendars: Calendar[],
         dynamicEvents: EventDuration[]): Schedule => {
         if (dynamicEvents.length === 0) {
+            const currSchedule = new ScoredSchedule(calendars);
+            if (!bestSchedule || currSchedule.score < bestSchedule.score) {
+                bestSchedule = currSchedule;
+                console.log(bestSchedule.score);
+            }
+            
             return calendars;
         }
 
@@ -177,17 +188,19 @@ const assign = (
 
         for (let calendarIndex = 0; calendarIndex < calendars.length; calendarIndex++) {
             const calendar = calendars[calendarIndex];
-            const result = dynamicBacktrackDivergence(calendar, duration, backtrackCallback);
-            if (result) {
-                return result;
-            }
+            dynamicBacktrackDivergence(calendar, duration, backtrackCallback);
+            // const result = dynamicBacktrackDivergence(calendar, duration, backtrackCallback);
+            // if (result) {
+            //     return result;
+            // }
 
             for (let eventIndex = 0; eventIndex < calendar.events.length; eventIndex++) {
                 const calendarEvent = calendar.events[eventIndex];
-                const result = dynamicBacktrackDivergence(calendar, duration, backtrackCallback, calendarEvent);
-                if (result) {
-                    return result;
-                }
+                dynamicBacktrackDivergence(calendar, duration, backtrackCallback, calendarEvent);
+                // const result = dynamicBacktrackDivergence(calendar, duration, backtrackCallback, calendarEvent);
+                // if (result) {
+                //     return result;
+                // }
             }
         }
         return null;
@@ -196,6 +209,7 @@ const assign = (
     let schedule = staticBacktrack(calendars, staticEvents);
     if (schedule)
         schedule = dynamicBacktrack(schedule, dynamicEvents);
+    fs.appendFileSync('./res.json', JSON.stringify(bestSchedule));
     return schedule;
 }
 
@@ -213,14 +227,14 @@ const initClasses = () => {
     return initCalendar(10);
 };
 
-const initBadrooms = () => {
-    return initCalendar(5);
-}
+// const initBadrooms = () => {
+//     return initCalendar(5);
+// }
 
 
-const initOffices = () => {
-    return initCalendar(7);
-}
+// const initOffices = () => {
+//     return initCalendar(7);
+// }
 
 const initStaticCoursesDates = () => {
     const staticCourses: CalendarEvent[] = [];
@@ -245,12 +259,12 @@ const initStaticCoursesDates = () => {
 const initDynamicCoursesRanges = () => {
     const dynamicCourses: EventDuration[] = [];
 
-    for (let i = 0; i < 17; i += 2) {
+    for (let i = 0; i < 10; i += 2) {
         const duration = new EventDuration(10 + i);
         dynamicCourses.push(duration);
-        dynamicCourses.push(duration);
-        dynamicCourses.push(duration);
-        dynamicCourses.push(duration);
+        // dynamicCourses.push(duration);
+        // dynamicCourses.push(duration);
+        // dynamicCourses.push(duration);
     }
 
     return dynamicCourses;

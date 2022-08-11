@@ -1,0 +1,27 @@
+{
+  "name": "bhd15_algo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "ts-node ./src/assignAlgo.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yoavrozner/bhd15_algo.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/yoavrozner/bhd15_algo/issues"
+  },
+  "homepage": "https://github.com/yoavrozner/bhd15_algo#readme",
+  "devDependencies": {
+    "@types/node": "^18.7.1",
+    "typescript": "^4.7.4"
+  },
+  "dependencies": {
+    "ts-node": "^10.9.1"
+  }
+}
