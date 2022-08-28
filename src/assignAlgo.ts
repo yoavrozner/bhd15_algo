@@ -1,4 +1,4 @@
-import * as fs from 'fs'; 
+import * as fs from 'fs';
 
 class EventDuration extends Number { }
 
@@ -124,6 +124,10 @@ const assign = (
     staticEvents: CalendarEvent[],
     dynamicEvents: EventDuration[]): Schedule => {
     let bestSchedule: ScoredSchedule | null = null;
+    const durationFromMaxToMin = (duration1: EventDuration, duration2: EventDuration) => duration2.valueOf() - duration1.valueOf();
+    const durationOfEventFromMaxToMin = (event1: CalendarEvent, event2: CalendarEvent) => durationFromMaxToMin(event1.duration, event2.duration);
+    const sortStaticEventsByDuration = (staticEvents: CalendarEvent[]): CalendarEvent[] => staticEvents.concat().sort(durationOfEventFromMaxToMin);
+    const sortDynamicEventsByDuration = (dynamicEvents: EventDuration[]) => dynamicEvents.concat().sort(durationFromMaxToMin);
     const backtrackDivergence = (
         calendar: Calendar,
         event: CalendarEvent,
@@ -177,7 +181,7 @@ const assign = (
                 bestSchedule = currSchedule;
                 console.log(bestSchedule.score);
             }
-            
+
             return calendars;
         }
 
@@ -206,10 +210,11 @@ const assign = (
         return null;
     }
 
-    let schedule = staticBacktrack(calendars, staticEvents);
+    const sortedStaticEvents = sortStaticEventsByDuration(staticEvents);
+    const sortedDynamicEvents = sortDynamicEventsByDuration(dynamicEvents);
+    let schedule = staticBacktrack(calendars, sortedStaticEvents);
     if (schedule)
-        schedule = dynamicBacktrack(schedule, dynamicEvents);
-    fs.appendFileSync('./res.json', JSON.stringify(bestSchedule));
+        schedule = dynamicBacktrack(schedule, sortedDynamicEvents);
     return schedule;
 }
 
