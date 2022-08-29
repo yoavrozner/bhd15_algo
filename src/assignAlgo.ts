@@ -7,6 +7,8 @@ class CalendarEvent {
     startDate: Date;
     // The end of the event. Stored as Date.
     endDate: Date;
+    // Contains the constraints of the current calendar.
+    constraints: { [key: string]: number };
 
     /**
      * The constructor for CalendarEvent.
@@ -19,8 +21,16 @@ class CalendarEvent {
         endDate?: Date;
         duration?: EventDuration;
         endTime?: number;
+        constraints?: { [key: string]: number };
     }) {
-        const { startDate, startTime, endDate, duration, endTime } = obj;
+        const {
+            startDate,
+            startTime,
+            endDate,
+            duration,
+            endTime,
+            constraints,
+        } = obj;
         // this.id = 'id' + (new Date()).getTime();
         if (startDate) this.startDate = startDate;
         else if (startTime) this.startDate = new Date(startTime);
@@ -33,6 +43,8 @@ class CalendarEvent {
             );
         else if (endTime) this.endDate = new Date(endTime);
         else throw new Error('End date is required');
+
+        this.constraints = constraints ?? {};
     }
 
     /**
@@ -73,15 +85,22 @@ class Calendar {
     startDate: Date;
     // Contains when the calendar events must end.
     endDate: Date;
+    // Contains the resources of the current calendar.
+    resources: { [key: string]: number };
     /**
      * The constructor for Calendar.
      * @param startDate describes when the calendar starts.
      * @param endDate describes when the calendar ends.
      */
-    constructor(startDate: Date, endDate: Date) {
+    constructor(
+        startDate: Date,
+        endDate: Date,
+        resources: { [key: string]: number } = {}
+    ) {
         this.events = [];
         this.startDate = startDate;
         this.endDate = endDate;
+        this.resources = resources;
     }
 
     /**
@@ -105,7 +124,7 @@ class Calendar {
      * @returns true if the events are overlapping and false if they are
      * foreign to each other.
      */
-    isOverlapping(event1: CalendarEvent, event2: CalendarEvent) {
+    isOverlapping(event1: CalendarEvent, event2: CalendarEvent): Boolean {
         return !(
             (event1.startTime <= event2.endTime &&
                 event1.endTime <= event2.startTime) ||
@@ -114,13 +133,19 @@ class Calendar {
         );
     }
 
+    canAddEvent(event: CalendarEvent): Boolean {
+        return (
+            this.canAddEventInTime(event) && this.canAddEventInResources(event)
+        );
+    }
+
     /**
      * Checks if a given event can be added to the calendar events without
      * overlapping other events.
      * @param event a calendar event.
-     * @returns true if it can be added to calendar. Otherwise, false.
+     * @returns true if it can be added to calendar in time. Otherwise, false.
      */
-    canAddEvent(event: CalendarEvent) {
+    private canAddEventInTime(event: CalendarEvent): Boolean {
         const startEdgeOverflow = this.startTime >= event.startTime;
         const endEdgeOverflow = this.endDate
             ? this.endTime <= event.endTime
@@ -132,11 +157,54 @@ class Calendar {
     }
 
     /**
+     * Checks if a the calendar has enough resources to contain the given event.
+     * @param event a calendar event.
+     * @returns true the calendar has enough resources to contain the event.
+     */
+    private canAddEventInResources(event: CalendarEvent): Boolean {
+        const eventConstraintsEntries: [string, number][] = Object.entries(
+            event.constraints
+        );
+        const resourcesClone: { [key: string]: number } = { ...this.resources };
+        for (
+            let constraintIndex = 0;
+            constraintIndex < eventConstraintsEntries.length;
+            constraintIndex++
+        ) {
+            const [constraintName, constraintValue] =
+                eventConstraintsEntries[constraintIndex];
+            if (
+                !(
+                    resourcesClone[constraintName] &&
+                    resourcesClone[constraintName] - constraintValue
+                )
+            )
+                return false;
+        }
+        return true;
+    }
+
+    /**
      * Adds an event to the calendar events.
      * @param event a calendar event.
      */
     addEvent(event: CalendarEvent) {
         this.events.push(event);
+
+        const eventConstraintsEntries: [string, number][] = Object.entries(
+            event.constraints
+        );
+        const resourcesClone: { [key: string]: number } = { ...this.resources };
+        for (
+            let constraintIndex = 0;
+            constraintIndex < eventConstraintsEntries.length;
+            constraintIndex++
+        ) {
+            const [constraintName, constraintValue] =
+                eventConstraintsEntries[constraintIndex];
+            resourcesClone[constraintName] -= constraintValue;
+        }
+        this.resources = resourcesClone;
     }
 
     /**
@@ -219,10 +287,20 @@ const assign = (
     staticEvents: CalendarEvent[],
     dynamicEvents: EventDuration[]
 ): Schedule => {
-    const durationFromMaxToMin = (duration1: EventDuration, duration2: EventDuration) => duration2.valueOf() - duration1.valueOf();
-    const durationOfEventFromMaxToMin = (event1: CalendarEvent, event2: CalendarEvent) => durationFromMaxToMin(event1.duration, event2.duration);
-    const sortStaticEventsByDuration = (staticEvents: CalendarEvent[]): CalendarEvent[] => staticEvents.concat().sort(durationOfEventFromMaxToMin);
-    const sortDynamicEventsByDuration = (dynamicEvents: EventDuration[]) => dynamicEvents.concat().sort(durationFromMaxToMin);
+    const durationFromMaxToMin = (
+        duration1: EventDuration,
+        duration2: EventDuration
+    ) => duration2.valueOf() - duration1.valueOf();
+    const durationOfEventFromMaxToMin = (
+        event1: CalendarEvent,
+        event2: CalendarEvent
+    ) => durationFromMaxToMin(event1.duration, event2.duration);
+    const sortStaticEventsByDuration = (
+        staticEvents: CalendarEvent[]
+    ): CalendarEvent[] =>
+        staticEvents.concat().sort(durationOfEventFromMaxToMin);
+    const sortDynamicEventsByDuration = (dynamicEvents: EventDuration[]) =>
+        dynamicEvents.concat().sort(durationFromMaxToMin);
     /**
      * Single static event backtrack divergence (or branch) that checks if a calendar
      * can add the event and create a divergence in the schedule assignment.
@@ -395,7 +473,7 @@ const assign = (
     const sortedStaticEvents = sortStaticEventsByDuration(staticEvents);
     const sortedDynamicEvents = sortDynamicEventsByDuration(dynamicEvents);
     // Firstly try to assign all the static events and then assign the dynamic events because the static events
-    // are harder to fullfil because it is has more constrains (specific date and not just duration).
+    // are harder to fullfil because it is has more constraints (specific date and not just duration).
     let schedule = staticBacktrack(calendars, sortedStaticEvents);
     if (schedule) schedule = dynamicBacktrack(schedule, sortedDynamicEvents);
     return schedule;
@@ -414,7 +492,6 @@ const initCalendar = (numberOfCalendars: number) => {
 
 // Generate fake calendars of classes for test reasons.
 const initClasses = () => initCalendar(10);
-
 
 // Generate fake calendars of offices for test reasons.
 const initOffices = () => initCalendar(7);
