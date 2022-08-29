@@ -1,8 +1,21 @@
+interface GeneralEvent {
+    // Contains the constraints of the current calendar.
+    constraints: { [key: string]: number };
+}
+
 // A class that describes the duration of non static events.
-class EventDuration extends Number {}
+class EventDuration extends Number implements GeneralEvent {
+    // Contains the constraints of the current calendar.
+    constraints: { [key: string]: number };
+
+    constructor(value: number, constraints: { [key: string]: number } = {}) {
+        super(value);
+        this.constraints = constraints;
+    }
+}
 
 // A class for describing an event that will occur in a Calendar
-class CalendarEvent {
+class CalendarEvent implements GeneralEvent {
     // The start of the event. Stored as Date.
     startDate: Date;
     // The end of the event. Stored as Date.
@@ -73,7 +86,10 @@ class CalendarEvent {
      * @return the duration of the event in milliseconds.
      */
     public get duration(): EventDuration {
-        return this.endTime - this.startTime;
+        return new EventDuration(
+            this.endTime - this.startTime,
+            this.constraints
+        );
     }
 }
 
@@ -522,7 +538,7 @@ const initDynamicCoursesRanges = () => {
     const dynamicCourses: EventDuration[] = [];
 
     for (let i = 0; i < 10; i += 2) {
-        const duration = new EventDuration(10 + i);
+        const duration = new EventDuration(10 + i, {});
         dynamicCourses.push(duration);
         // dynamicCourses.push(duration);
         // dynamicCourses.push(duration);
